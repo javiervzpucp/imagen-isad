@@ -16,12 +16,12 @@ client = OpenAI(api_key=openai_api_key)
 
 # Cargar metadatos desde JSON
 metadata_path = 'metadata.json'
-with open(metadata_path, 'r', encoding='utf-8') as f:
+with open(metadata_path, 'r', encoding='ISO-8859-1') as f:
     metadata = json.load(f)
 
 # Inicializar DataFrame vacío
 if os.path.exists('descripciones_imagenes.csv'):
-    new_df = pd.read_csv('descripciones_imagenes.csv', sep=';', encoding='utf-8')
+    new_df = pd.read_csv('descripciones_imagenes.csv', sep=';', encoding='ISO-8859-1')
 else:
     new_df = pd.DataFrame(columns=["imagen", "descripcion", "generated_description", "keywords", "fecha"])
 
@@ -85,7 +85,7 @@ def generate_keywords(description):
         if isinstance(keywords, list):
             return keywords
         else:
-            return []
+            return ["Sin datos"]
     except json.JSONDecodeError:
         return []
 
@@ -110,12 +110,7 @@ if option == "URL de imagen":
             new_row = {"imagen": img_url, "descripcion": title, "generated_description": description, "keywords": keywords, "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
             
-            st.download_button(
-                label="Descargar Datos en Excel",
-                data=new_df.to_csv(sep=';', index=False, encoding='utf-8').encode('utf-8'),
-                file_name="descripciones_imagenes.csv",
-                mime="text/csv"
-            )
+            save_to_csv(new_df, 'descripciones_imagenes.csv')
 else:
     uploaded_file = st.file_uploader("Cargue una imagen", type=["jpg", "jpeg", "png"])
     title = st.text_input("Ingrese un título o descripción breve de la imagen")
@@ -134,9 +129,5 @@ else:
             new_row = {"imagen": img_path, "descripcion": title, "generated_description": description, "keywords": keywords, "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
             
-            st.download_button(
-                label="Descargar Datos en Excel",
-                data=new_df.to_csv(index=False).encode('utf-8'),
-                file_name="descripciones_imagenes.csv",
-                mime="text/csv"
-            )
+            save_to_csv(new_df, 'descripciones_imagenes.csv')
+                
