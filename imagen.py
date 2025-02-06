@@ -1,4 +1,3 @@
-import os
 import streamlit as st
 from dotenv import load_dotenv
 import pandas as pd
@@ -49,12 +48,7 @@ def validate_image_url(url):
 def describe_image(img_path, title):
     metadata_entry = next((item for item in metadata.get('files', []) if item.get('label') == title), None)
     additional_info = metadata_entry['description'] if metadata_entry else ''
-    
-    excel_entry = new_df[new_df['imagen'] == title]
-    excel_info = excel_entry['descripcion'].values[0] if not excel_entry.empty else ''
-    
-    prompt = f"{describe_system_prompt}\n\nContexto archivístico:\n{additional_info}\nInformación adicional de Excel:\n{excel_info}\n\nGenera una descripción detallada y precisa para la siguiente imagen:\nTítulo: {title}"
-    
+    prompt = f"{describe_system_prompt}\n\nContexto archivístico:\n{additional_info}\n\nGenera una descripción para la siguiente imagen:\nTítulo: {title}"
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -67,7 +61,7 @@ def describe_image(img_path, title):
     return response.choices[0].message.content.strip()
 
 def generate_keywords(description):
-    prompt = f"{keyword_system_prompt}\n\nDescripción de la imagen:\n{description.strip()}"
+    prompt = f"{keyword_system_prompt}\n\nDescripción: {description}"
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -78,12 +72,9 @@ def generate_keywords(description):
         temperature=0.2
     )
     try:
-        keywords = json.loads(response.choices[0].message.content.strip())
-        if isinstance(keywords, list):
-            return keywords
-        else:
-            return []
+        return json.loads(response.choices[0].message.content.strip())
     except json.JSONDecodeError:
+        st.error("Error al procesar las palabras clave generadas. Verifique la respuesta del modelo.")
         return []
 
 def save_to_csv(dataframe, file_path):
@@ -105,6 +96,30 @@ if option == "URL de imagen":
             st.write("Descripción generada:", description)
             st.write("Palabras clave generadas:", ", ".join(keywords))
             new_row = {"imagen": img_url, "descripcion": title, "generated_description": description, "keywords": keywords, "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
+            new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
+            
+            st.download_button(
+                label="Descargar Datos en Excel",
+                data=new_df.to_csv(index=False).encode('utf-8'),
+                file_name="descripciones_imagenes.csv",
+                mime="text/csv"
+            )
+else:
+    uploaded_file = st.file_uploader("Cargue una imagen", type=["jpg", "jpeg", "png"])
+    title = st.text_input("Ingrese un título o descripción breve de la imagen")
+    
+    if uploaded_file:
+        image = Image.open(uploaded_file)
+        st.image(image, caption="Imagen cargada", use_column_width=True)
+        if st.button("Generar Descripción"):
+            with tempfile.NamedTemporaryFile(delete=False, suffix=".png") as temp_file:
+                image.save(temp_file.name)
+                img_path = temp_file.name
+            description = describe_image(img_path, title)
+            keywords = generate_keywords(description)
+            st.write("Descripción generada:", description)
+            st.write("Palabras clave generadas:", ", ".join(keywords))
+            new_row = {"imagen": img_path, "descripcion": title, "generated_description": description, "keywords": keywords, "fecha": datetime.now().strftime("%Y-%m-%d %H:%M:%S")}
             new_df = pd.concat([new_df, pd.DataFrame([new_row])], ignore_index=True)
             
             st.download_button(
