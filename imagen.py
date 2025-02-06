@@ -48,7 +48,12 @@ def validate_image_url(url):
 def describe_image(img_path, title):
     metadata_entry = next((item for item in metadata.get('files', []) if item.get('label') == title), None)
     additional_info = metadata_entry['description'] if metadata_entry else ''
-    prompt = f"{describe_system_prompt}\n\nContexto archivístico:\n{additional_info}\n\nGenera una descripción para la siguiente imagen:\nTítulo: {title}"
+    
+    excel_entry = new_df[new_df['imagen'] == title]
+    excel_info = excel_entry['descripcion'].values[0] if not excel_entry.empty else ''
+    
+    prompt = f"{describe_system_prompt}\n\nContexto archivístico:\n{additional_info}\nInformación adicional de Excel:\n{excel_info}\n\nGenera una descripción detallada y precisa para la siguiente imagen:\nTítulo: {title}"
+    
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -61,7 +66,7 @@ def describe_image(img_path, title):
     return response.choices[0].message.content.strip()
 
 def generate_keywords(description):
-    prompt = f"{keyword_system_prompt}\n\nDescripción: {description}"
+    prompt = f"{keyword_system_prompt}\n\nDescripción de la imagen:\n{description.strip()}"
     response = client.chat.completions.create(
         model="gpt-4-turbo",
         messages=[
@@ -72,9 +77,12 @@ def generate_keywords(description):
         temperature=0.2
     )
     try:
-        return json.loads(response.choices[0].message.content.strip())
+        keywords = json.loads(response.choices[0].message.content.strip())
+        if isinstance(keywords, list):
+            return keywords
+        else:
+            return []
     except json.JSONDecodeError:
-        st.error("Error al procesar las palabras clave generadas. Verifique la respuesta del modelo.")
         return []
 
 def save_to_csv(dataframe, file_path):
