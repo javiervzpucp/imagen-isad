@@ -1,3 +1,4 @@
+import os
 import streamlit as st
 from dotenv import load_dotenv
 import pandas as pd
@@ -19,7 +20,10 @@ with open(metadata_path, 'r', encoding='utf-8') as f:
     metadata = json.load(f)
 
 # Inicializar DataFrame vacío
-new_df = pd.DataFrame(columns=["imagen", "descripcion", "generated_description", "keywords", "fecha"])
+if os.path.exists('descripciones_imagenes.csv'):
+    new_df = pd.read_csv('descripciones_imagenes.csv', sep=';', encoding='utf-8')
+else:
+    new_df = pd.DataFrame(columns=["imagen", "descripcion", "generated_description", "keywords", "fecha"])
 
 # Prompts para descripciones y palabras clave
 describe_system_prompt = """
@@ -60,7 +64,7 @@ def describe_image(img_path, title):
             {"role": "system", "content": describe_system_prompt},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=300,
+        max_tokens=500,
         temperature=0.2
     )
     return response.choices[0].message.content.strip()
@@ -73,7 +77,7 @@ def generate_keywords(description):
             {"role": "system", "content": keyword_system_prompt},
             {"role": "user", "content": prompt}
         ],
-        max_tokens=100,
+        max_tokens=150,
         temperature=0.2
     )
     try:
@@ -108,7 +112,7 @@ if option == "URL de imagen":
             
             st.download_button(
                 label="Descargar Datos en Excel",
-                data=new_df.to_csv(index=False).encode('utf-8'),
+                data=new_df.to_csv(sep=';', index=False, encoding='utf-8').encode('utf-8'),
                 file_name="descripciones_imagenes.csv",
                 mime="text/csv"
             )
