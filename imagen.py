@@ -71,7 +71,11 @@ def generate_keywords(description):
         max_tokens=100,
         temperature=0.2
     )
-    return eval(response.choices[0].message.content.strip())
+    try:
+        return json.loads(response.choices[0].message.content.strip())
+    except json.JSONDecodeError:
+        st.error("Error al procesar las palabras clave generadas. Verifique la respuesta del modelo.")
+        return []
 
 def save_to_csv(dataframe, file_path):
     dataframe.to_csv(file_path, sep=';', index=False, encoding='ISO-8859-1')
